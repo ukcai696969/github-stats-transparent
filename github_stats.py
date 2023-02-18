@@ -63,7 +63,7 @@ class Queries(object):
                 "Authorization": f"token {self.access_token}",
             }
             if params is None:
-                params = dict()
+                params = {}
             if path.startswith("/"):
                 path = path[1:]
             try:
@@ -73,7 +73,7 @@ class Queries(object):
                                                params=tuple(params.items()))
                 if r.status == 202:
                     # print(f"{path} returned 202. Retrying...")
-                    print(f"A path returned 202. Retrying...")
+                    print("A path returned 202. Retrying...")
                     await asyncio.sleep(2)
                     continue
 
@@ -88,14 +88,14 @@ class Queries(object):
                                      headers=headers,
                                      params=tuple(params.items()))
                     if r.status_code == 202:
-                        print(f"A path returned 202. Retrying...")
+                        print("A path returned 202. Retrying...")
                         await asyncio.sleep(2)
                         continue
                     elif r.status_code == 200:
                         return r.json()
         # print(f"There were too many 202s. Data for {path} will be incomplete.")
         print("There were too many 202s. Data for this repository will be incomplete.")
-        return dict()
+        return {}
 
     @staticmethod
     def repos_overview(contrib_cursor: Optional[str] = None,
@@ -114,7 +114,7 @@ class Queries(object):
             direction: DESC
         }},
         isFork: false,
-        after: {"null" if owned_cursor is None else '"'+ owned_cursor +'"'}
+        after: {"null" if owned_cursor is None else f'"{owned_cursor}"'}
     ) {{
       pageInfo {{
         hasNextPage
@@ -150,7 +150,7 @@ class Queries(object):
             REPOSITORY,
             PULL_REQUEST_REVIEW
         ]
-        after: {"null" if contrib_cursor is None else '"'+ contrib_cursor +'"'}
+        after: {"null" if contrib_cursor is None else f'"{contrib_cursor}"'}
     ) {{
       pageInfo {{
         hasNextPage
@@ -276,10 +276,10 @@ Languages:
         """
         self._stargazers = 0
         self._forks = 0
-        self._languages = dict()
+        self._languages = {}
         self._repos = set()
         self._ignored_repos = set()
-        
+
         next_owned = None
         next_contrib = None
         while True:
@@ -307,7 +307,7 @@ Languages:
                            .get("data", {})
                            .get("viewer", {})
                            .get("repositories", {}))
-            
+
             repos = owned_repos.get("nodes", [])
             if self._consider_forked_repos:
                 repos += contrib_repos.get("nodes", [])
@@ -340,21 +340,21 @@ Languages:
                             "color": lang.get("node", {}).get("color")
                         }
 
-            if owned_repos.get("pageInfo", {}).get("hasNextPage", False) or \
-                    contrib_repos.get("pageInfo", {}).get("hasNextPage", False):
-                next_owned = (owned_repos
-                              .get("pageInfo", {})
-                              .get("endCursor", next_owned))
-                next_contrib = (contrib_repos
-                                .get("pageInfo", {})
-                                .get("endCursor", next_contrib))
-            else:
+            if not owned_repos.get("pageInfo", {}).get(
+                "hasNextPage", False
+            ) and not contrib_repos.get("pageInfo", {}).get("hasNextPage", False):
                 break
 
+            next_owned = (owned_repos
+                          .get("pageInfo", {})
+                          .get("endCursor", next_owned))
+            next_contrib = (contrib_repos
+                            .get("pageInfo", {})
+                            .get("endCursor", next_contrib))
         # TODO: Improve languages to scale by number of contributions to
         #       specific filetypes
-        langs_total = sum([v.get("size", 0) for v in self._languages.values()])
-        for k, v in self._languages.items():
+        langs_total = sum(v.get("size", 0) for v in self._languages.values())
+        for v in self._languages.values():
             v["prop"] = 100 * (v.get("size", 0) / langs_total)
 
     @property
